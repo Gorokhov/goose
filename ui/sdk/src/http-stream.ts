@@ -73,8 +73,14 @@ function extractSessionId(value: unknown): string | null {
  * GET SSE stream plus a session-scoped stream per active `sessionId`.
  */
 export function createHttpStream(serverUrl: string): Stream {
-  const base = serverUrl.replace(/\/+$/, "");
+  const url = new URL(serverUrl);
+  const token = url.searchParams.get("token");
+  url.search = "";
+  const base = url.toString().replace(/\/+$/, "");
   const endpoint = `${base}/acp`;
+  const authHeaders: Record<string, string> = token
+    ? { "X-Secret-Key": token }
+    : {};
 
   let connectionId: string | null = null;
   let connectionStreamAbort: AbortController | null = null;
@@ -108,6 +114,7 @@ export function createHttpStream(serverUrl: string): Stream {
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
+        ...authHeaders,
         Accept: "text/event-stream",
         [ACP_CONNECTION_HEADER]: connectionId,
       },
@@ -140,6 +147,7 @@ export function createHttpStream(serverUrl: string): Stream {
       response = await fetch(endpoint, {
         method: "GET",
         headers: {
+          ...authHeaders,
           Accept: "text/event-stream",
           [ACP_CONNECTION_HEADER]: connectionId,
           [ACP_SESSION_HEADER]: sessionId,
@@ -244,6 +252,7 @@ export function createHttpStream(serverUrl: string): Stream {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
+        ...authHeaders,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -278,6 +287,7 @@ export function createHttpStream(serverUrl: string): Stream {
     }
 
     const headers: Record<string, string> = {
+      ...authHeaders,
       "Content-Type": "application/json",
       Accept: "application/json",
       [ACP_CONNECTION_HEADER]: connectionId,
@@ -325,7 +335,7 @@ export function createHttpStream(serverUrl: string): Stream {
     try {
       await fetch(endpoint, {
         method: "DELETE",
-        headers: { [ACP_CONNECTION_HEADER]: connectionId },
+        headers: { ...authHeaders, [ACP_CONNECTION_HEADER]: connectionId },
       });
     } catch {
       // best-effort
