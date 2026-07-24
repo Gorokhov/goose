@@ -1389,7 +1389,10 @@ async function main() {
   if (cli.flags.text) {
     await runTextMode(serverConnection, cli.flags.text);
     cleanup();
-    return;
+    // A remote --server connection keeps its SSE stream open after the
+    // reply completes, which would otherwise hold the event loop open
+    // forever instead of letting the process exit naturally.
+    process.exit(0);
   }
 
   // Interactive TUI mode
