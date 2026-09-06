@@ -45,10 +45,15 @@ echo ">> Building"
 # ui/text depends on the published @aaif/goose-sdk npm package, not the
 # workspace-local one (pnpm-workspace.yaml pins it by version, not
 # `workspace:*`). Overwrite the installed copy with our patched build so the
-# auth fix (X-Secret-Key / ?token=) actually ships.
-INSTALLED_SDK_DIST="$INSTALL_DIR/ui/text/node_modules/@aaif/goose-sdk/dist"
-if [ -d "$INSTALLED_SDK_DIST" ]; then
-  cp "$INSTALL_DIR/ui/sdk/dist/http-stream.js" "$INSTALLED_SDK_DIST/http-stream.js"
+# auth fix (X-Secret-Key / ?token=) actually ships. pnpm-workspace.yaml sets
+# nodeLinker: hoisted, and WHERE it hoists @aaif/goose-sdk to varies by
+# machine/pnpm-version (seen both ui/text/node_modules/... and, one level up,
+# ui/node_modules/... on a fresh install) - search instead of assuming one path.
+mapfile -t INSTALLED_SDK_FILES < <(find "$INSTALL_DIR/ui" -path '*/node_modules/@aaif/goose-sdk/dist/http-stream.js')
+if [ "${#INSTALLED_SDK_FILES[@]}" -gt 0 ]; then
+  for f in "${INSTALLED_SDK_FILES[@]}"; do
+    cp "$INSTALL_DIR/ui/sdk/dist/http-stream.js" "$f"
+  done
 else
   echo "WARNING: could not find installed @aaif/goose-sdk to patch; auth may not work." >&2
 fi
