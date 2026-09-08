@@ -721,7 +721,7 @@ function App({
       setStatus("creating session…");
       setLoading(true);
       try {
-        const cwd = process.cwd();
+        const cwd = sessionCwd;
         sessionCwdRef.current = cwd;
         const session = await client.newSession({
           cwd,
@@ -737,7 +737,10 @@ function App({
           setTimeout(() => exit(), 100);
         }
       } catch (e: unknown) {
-        const errorMsg = formatError(e);
+        let errorMsg = formatError(e);
+        if (/invalid directory path/i.test(JSON.stringify(e) ?? "")) {
+          errorMsg = `agent rejected cwd "${sessionCwdRef.current}" — that path must exist on the agent host, not this one. Re-run with --cwd <path-on-agent>.`;
+        }
         setStatus(`failed: ${errorMsg}`);
         setLoading(false);
       }
@@ -1296,15 +1299,25 @@ const cli = meow(
   Options
     --server, -s  Server URL (default: auto-launch bundled server)
     --text, -t    Send a single prompt and exit
+    --cwd         Session working directory, resolved on the AGENT host
+                  (default: the current directory)
 `,
   {
     importMeta: import.meta,
     flags: {
       server: { type: "string", shortFlag: "s" },
       text: { type: "string", shortFlag: "t" },
+      cwd: { type: "string" },
     },
   },
 );
+
+// session/new sends this to the agent, which resolves it on ITS OWN filesystem. When
+// --server points at another machine the local directory is meaningless there, and
+// any path that doesn't exist agent-side is rejected with a bare
+// "Invalid params" / "invalid directory path" (-32602) that names neither the path
+// nor the reason. --cwd lets a remote client pass a directory that exists on the agent.
+const sessionCwd = cli.flags.cwd ?? process.cwd();
 
 let serverProcess: ReturnType<typeof spawn> | null = null;
 
@@ -1342,7 +1355,7 @@ async function runTextMode(serverConnection: Stream | string, prompt: string) {
     });
 
     const session = await client.newSession({
-      cwd: process.cwd(),
+      cwd: sessionCwd,
       mcpServers: [],
     });
 

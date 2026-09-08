@@ -15,6 +15,12 @@ set -euo pipefail
 
 GOOSE_REMOTE_HOST="${GOOSE_REMOTE_HOST:-192.168.200.15}"
 GOOSE_REMOTE_PORT="${GOOSE_REMOTE_PORT:-3284}"
+# session/new sends a working directory that the AGENT resolves on its own filesystem.
+# This client is remote by definition, so the local directory you happen to launch
+# from usually doesn't exist over there - the agent then rejects the session with a
+# bare "Invalid params" (data: "invalid directory path"). Pin a path that exists on
+# the agent host instead of inheriting $PWD.
+GOOSE_REMOTE_CWD="${GOOSE_REMOTE_CWD:-/home/corle}"
 REPO_URL="https://github.com/Gorokhov/goose.git"
 GOOSE_REMOTE_REF="${GOOSE_REMOTE_REF:-main}"
 INSTALL_DIR="${GOOSE_REMOTE_INSTALL_DIR:-$HOME/.local/share/goose-remote-client}"
@@ -116,8 +122,11 @@ fi
 mkdir -p "$(dirname "$WRAPPER_PATH")"
 cat > "$WRAPPER_PATH" <<EOF
 #!/usr/bin/env bash
+# --cwd is a path on the AGENT host, not this machine. Override per-invocation by
+# passing your own --cwd, which wins since later flags take precedence.
 exec node "$TUI_ENTRY" \\
   --server "http://${GOOSE_REMOTE_HOST}:${GOOSE_REMOTE_PORT}?token=${GOOSE_REMOTE_TOKEN}" \\
+  --cwd "${GOOSE_REMOTE_CWD}" \\
   "\$@"
 EOF
 chmod +x "$WRAPPER_PATH"
