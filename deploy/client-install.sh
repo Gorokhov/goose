@@ -14,7 +14,10 @@ GOOSE_REMOTE_HOST="${GOOSE_REMOTE_HOST:-192.168.200.15}"
 GOOSE_REMOTE_PORT="${GOOSE_REMOTE_PORT:-3284}"
 REPO_URL="https://github.com/Gorokhov/goose.git"
 INSTALL_DIR="${GOOSE_REMOTE_INSTALL_DIR:-$HOME/.local/share/goose-remote-client}"
-WRAPPER_PATH="$HOME/.local/bin/goose-remote"
+# Overridable so a throwaway test install (GOOSE_REMOTE_INSTALL_DIR=/tmp/...) doesn't
+# repoint the real `goose-remote` at a directory that's about to be deleted — which is
+# exactly what happened on 2026-09-07, leaving MODULE_NOT_FOUND behind.
+WRAPPER_PATH="${GOOSE_REMOTE_WRAPPER_PATH:-$HOME/.local/bin/goose-remote}"
 
 if [ -z "${GOOSE_REMOTE_TOKEN:-}" ]; then
   echo "GOOSE_REMOTE_TOKEN is not set. Re-run as:" >&2
