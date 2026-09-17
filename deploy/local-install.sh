@@ -26,20 +26,29 @@ GOOSE_LLM_PORT="${GOOSE_LLM_PORT:-4000}"
 # to change the baked-in default.
 GOOSE_LLM_MODEL="${GOOSE_LLM_MODEL:-Qwen3.6-35B-A3B}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/goose"
-# Shared memory: the SAME store OpenWebUI reads and writes, so what you tell the chat UI
-# is known here and vice versa. This is a MEMORY-ONLY MCP VIEW (4 tools) on purpose.
-# Do NOT point this at the hub's root path /mcp - that view also carries fs_*/git_*
-# tools which act on the SERVER's disk, and having two filesystems behind
-# similar-sounding tools is how an agent edits the wrong machine's files.
+# Shared memory + delegation: the memory store is the SAME one OpenWebUI reads and
+# writes, so what you tell the chat UI is known here and vice versa.
 #
-# The memory view used to live on its own port (8093). It is now a PATH on the single
-# tool bridge, :8090/memory/mcp - one process, one port, one bearer token, two views.
+# This points at the hub's REMOTE-AGENT PROFILE, /agent/mcp: shared memory, the
+# subagent tools (delegate bulky work to the box's local models), and find_tool /
+# call_tool for everything else in the catalogue on demand.
+#
+# Do NOT point this at the hub's root path /mcp. That view also carries the server's
+# browser and fetch tools, and goose already has its own LOCAL equivalents - two sets
+# of similar-sounding tools acting on two different machines is how an agent does the
+# work on the wrong one. (For the same reason the server's fs_*/git_*/sql_* tools were
+# retired from the hub entirely in 2026-09.)
+#
+# History: this view used to be its own port (8093), then :8090/memory/mcp. It is now
+# one PATH among several on the single tool bridge - one process, one port, one bearer
+# token. /memory/mcp still exists and still serves the 4 memory tools, so an older
+# install keeps working; set GOOSE_LLM_MEMORY_PATH=/memory/mcp to pin that behaviour.
 # GOOSE_LLM_MEMORY_PORT is kept so an explicit override from an older invocation still
 # works; leave it alone and it follows the hub port.
 GOOSE_LLM_MEMORY="${GOOSE_LLM_MEMORY:-1}"
 GOOSE_LLM_HUB_PORT="${GOOSE_LLM_HUB_PORT:-8090}"
 GOOSE_LLM_MEMORY_PORT="${GOOSE_LLM_MEMORY_PORT:-$GOOSE_LLM_HUB_PORT}"
-GOOSE_LLM_MEMORY_PATH="${GOOSE_LLM_MEMORY_PATH:-/memory/mcp}"
+GOOSE_LLM_MEMORY_PATH="${GOOSE_LLM_MEMORY_PATH:-/agent/mcp}"
 GOOSE_LLM_MEMORY_URI="${GOOSE_LLM_MEMORY_URI:-http://${GOOSE_LLM_HOST}:${GOOSE_LLM_MEMORY_PORT}${GOOSE_LLM_MEMORY_PATH}}"
 GOOSE_LLM_MEMORY_TOKEN="${GOOSE_LLM_MEMORY_TOKEN:-}"
 
