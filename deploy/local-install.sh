@@ -26,6 +26,14 @@ GOOSE_LLM_PORT="${GOOSE_LLM_PORT:-4000}"
 # to change the baked-in default.
 GOOSE_LLM_MODEL="${GOOSE_LLM_MODEL:-Qwen3.6-35B-A3B}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/goose"
+# Shared memory: the SAME store OpenWebUI reads and writes, so what you tell the chat UI
+# is known here and vice versa. This is a MEMORY-ONLY MCP endpoint (4 tools) on purpose.
+# Do NOT point this at the full hub on :8090 - that one also carries fs_*/git_* tools
+# which act on the SERVER's disk, and having two filesystems behind similar-sounding
+# tools is how an agent edits the wrong machine's files.
+GOOSE_LLM_MEMORY="${GOOSE_LLM_MEMORY:-1}"
+GOOSE_LLM_MEMORY_PORT="${GOOSE_LLM_MEMORY_PORT:-8093}"
+GOOSE_LLM_MEMORY_TOKEN="${GOOSE_LLM_MEMORY_TOKEN:-}"
 
 BASE="http://${GOOSE_LLM_HOST}:${GOOSE_LLM_PORT}"
 
@@ -69,10 +77,11 @@ mkdir -p "$CONFIG_DIR"
 # config.yaml gives "401 ... No api key passed in" even with keyring disabled.
 # Headless boxes have no Secret Service, hence file-based storage.
 echo ">> Writing config to $CONFIG_DIR"
-python3 - "$CONFIG_DIR" "$GOOSE_LLM_MODEL" "$BASE" "$GOOSE_LLM_TOKEN" <<'PY'
+python3 - "$CONFIG_DIR" "$GOOSE_LLM_MODEL" "$BASE" "$GOOSE_LLM_TOKEN" \
+  "$GOOSE_LLM_MEMORY" "$GOOSE_LLM_MEMORY_TOKEN" "http://${GOOSE_LLM_HOST}:${GOOSE_LLM_MEMORY_PORT}/mcp" <<'PY'
 import os, sys, shutil, time
 
-cfg_dir, model, base, token = sys.argv[1:5]
+cfg_dir, model, base, token, mem_on, mem_token, mem_uri = sys.argv[1:8]
 config_path  = os.path.join(cfg_dir, "config.yaml")
 secrets_path = os.path.join(cfg_dir, "secrets.yaml")
 
@@ -121,6 +130,11 @@ if os.path.exists(config_path):
         providers.setdefault("openai", {}).update(
             {"enabled": True, "model": model, "configured": True})
         # setdefault, not update: never re-enable an extension the user disabled.
+        if mem_on == "1" and mem_token:
+            cfg.setdefault("extensions", {})["sharedmemory"] = {
+                "enabled": True, "name": "sharedmemory", "type": "streamable_http",
+                "uri": mem_uri, "headers": {"Authorization": "Bearer " + mem_token},
+                "timeout": 60}
         cfg.setdefault("extensions", {}).setdefault("developer", {
             "enabled": True, "type": "builtin", "name": "developer",
             "display_name": "Developer", "timeout": None, "bundled": True})
@@ -135,6 +149,10 @@ else:
         "    name: developer", "    display_name: Developer", "    timeout: null",
         "    bundled: true",
     ]
+    if mem_on == "1" and mem_token:
+        lines += ["  sharedmemory:", "    enabled: true", "    name: sharedmemory",
+                  "    type: streamable_http", f"    uri: {mem_uri}", "    headers:",
+                  f"      Authorization: Bearer {mem_token}", "    timeout: 60"]
     write(config_path, "\n".join(lines) + "\n")
     print("   wrote a fresh config.yaml")
 
