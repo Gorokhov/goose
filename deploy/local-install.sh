@@ -27,12 +27,20 @@ GOOSE_LLM_PORT="${GOOSE_LLM_PORT:-4000}"
 GOOSE_LLM_MODEL="${GOOSE_LLM_MODEL:-Qwen3.6-35B-A3B}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/goose"
 # Shared memory: the SAME store OpenWebUI reads and writes, so what you tell the chat UI
-# is known here and vice versa. This is a MEMORY-ONLY MCP endpoint (4 tools) on purpose.
-# Do NOT point this at the full hub on :8090 - that one also carries fs_*/git_* tools
-# which act on the SERVER's disk, and having two filesystems behind similar-sounding
-# tools is how an agent edits the wrong machine's files.
+# is known here and vice versa. This is a MEMORY-ONLY MCP VIEW (4 tools) on purpose.
+# Do NOT point this at the hub's root path /mcp - that view also carries fs_*/git_*
+# tools which act on the SERVER's disk, and having two filesystems behind
+# similar-sounding tools is how an agent edits the wrong machine's files.
+#
+# The memory view used to live on its own port (8093). It is now a PATH on the single
+# tool bridge, :8090/memory/mcp - one process, one port, one bearer token, two views.
+# GOOSE_LLM_MEMORY_PORT is kept so an explicit override from an older invocation still
+# works; leave it alone and it follows the hub port.
 GOOSE_LLM_MEMORY="${GOOSE_LLM_MEMORY:-1}"
-GOOSE_LLM_MEMORY_PORT="${GOOSE_LLM_MEMORY_PORT:-8093}"
+GOOSE_LLM_HUB_PORT="${GOOSE_LLM_HUB_PORT:-8090}"
+GOOSE_LLM_MEMORY_PORT="${GOOSE_LLM_MEMORY_PORT:-$GOOSE_LLM_HUB_PORT}"
+GOOSE_LLM_MEMORY_PATH="${GOOSE_LLM_MEMORY_PATH:-/memory/mcp}"
+GOOSE_LLM_MEMORY_URI="${GOOSE_LLM_MEMORY_URI:-http://${GOOSE_LLM_HOST}:${GOOSE_LLM_MEMORY_PORT}${GOOSE_LLM_MEMORY_PATH}}"
 GOOSE_LLM_MEMORY_TOKEN="${GOOSE_LLM_MEMORY_TOKEN:-}"
 
 BASE="http://${GOOSE_LLM_HOST}:${GOOSE_LLM_PORT}"
@@ -78,7 +86,7 @@ mkdir -p "$CONFIG_DIR"
 # Headless boxes have no Secret Service, hence file-based storage.
 echo ">> Writing config to $CONFIG_DIR"
 python3 - "$CONFIG_DIR" "$GOOSE_LLM_MODEL" "$BASE" "$GOOSE_LLM_TOKEN" \
-  "$GOOSE_LLM_MEMORY" "$GOOSE_LLM_MEMORY_TOKEN" "http://${GOOSE_LLM_HOST}:${GOOSE_LLM_MEMORY_PORT}/mcp" <<'PY'
+  "$GOOSE_LLM_MEMORY" "$GOOSE_LLM_MEMORY_TOKEN" "$GOOSE_LLM_MEMORY_URI" <<'PY'
 import os, sys, shutil, time
 
 cfg_dir, model, base, token, mem_on, mem_token, mem_uri = sys.argv[1:8]
