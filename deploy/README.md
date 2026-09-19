@@ -76,3 +76,31 @@ server's log at `~/.local/state/goose/logs/cli/<date>/*.log`).
 
 No token is committed here. Both scripts take it at install time and write it only to
 the local machine.
+
+## ⚠️ goose 1.51+ requires fastmcp >= 4 on the MCP server
+
+goose **1.51.0** speaks MCP revision **2026-07-28**, which replaced the `initialize`
+handshake with a stateless `server/discover`. goose sends `server/discover` first and
+falls back to `initialize` only if that call fails *cleanly*.
+
+**fastmcp 3.x answers it with a malformed error** — the id is the literal string
+`"server-error"` instead of the request's id:
+
+```json
+{"jsonrpc":"2.0","id":"server-error","error":{"code":-32600,"message":"Bad Request: Missing session ID"}}
+```
+
+goose cannot correlate that to its request, so the fallback never runs and the extension
+dies with:
+
+```
+failed to initialize MCP client: uncorrelated error response:
+expected id 0, error response carried server-error
+```
+
+Confirmed on fastmcp **3.4.4 and 3.4.7**; **4.0.5 returns `"id":0`** and implements the
+method properly. If you upgrade goose past 1.43, upgrade the MCP server too.
+
+Migrating a FastMCP server 3.x -> 4.x: `mount(sub, prefix=...)` became
+`mount(sub, namespace=...)`. `FastMCP.as_proxy` is gone entirely (use an explicit client),
+though `from_openapi`, `http_app`, `list_tools` and `call_tool` are unchanged.
