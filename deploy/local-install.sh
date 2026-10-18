@@ -81,7 +81,17 @@ if ! command -v goose >/dev/null 2>&1; then
   echo ">> Installing the official goose CLI"
   # The release artifact is a .tar.bz2; without bzip2 the upstream installer fails in a
   # way that doesn't mention bzip2 at all.
-  command -v bzip2 >/dev/null 2>&1 || echo "   NOTE: bzip2 not found - install it if the next step fails" >&2
+  # Install bzip2 instead of warning: the warning was ignored on a fresh Ubuntu VM and the
+  # extract failed anyway (2026-10-18). sudo is required only on this path.
+  if ! command -v bzip2 >/dev/null 2>&1; then
+    echo "   bzip2 not found - installing it (needed to unpack the goose release)"
+    if command -v apt-get >/dev/null 2>&1; then sudo apt-get install -y -q bzip2
+    elif command -v dnf >/dev/null 2>&1; then sudo dnf install -y bzip2
+    elif command -v pacman >/dev/null 2>&1; then sudo pacman -S --noconfirm bzip2
+    elif command -v brew >/dev/null 2>&1; then brew install bzip2
+    fi
+    command -v bzip2 >/dev/null 2>&1 || { echo "ERROR: could not install bzip2 - install it and re-run" >&2; exit 1; }
+  fi
   curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
   export PATH="$HOME/.local/bin:$PATH"
   command -v goose >/dev/null 2>&1 || { echo "ERROR: goose still not on PATH after install." >&2; exit 1; }
