@@ -1043,6 +1043,16 @@ function App({
     (ch, key) => {
       if (toolCallExpanded) return;
 
+      // Ctrl+Z: in raw mode the terminal never turns it into SIGTSTP, so Ink just
+      // swallowed it; and if the shell DID suspend us, nothing re-armed raw mode on
+      // `fg` and the screen stayed dead. Route it through the handlers installed
+      // next to render() below (restore terminal -> stop; on SIGCONT raw mode +
+      // full repaint).
+      if (key.ctrl && (ch === "z" || ch === "Z")) {
+        process.kill(process.pid, "SIGTSTP");
+        return;
+      }
+
       if (key.escape || (ch === "c" && key.ctrl)) {
         if (key.escape && pastedFull !== null) return;
         exit();
@@ -1409,11 +1419,27 @@ async function main() {
   }
 
   // Interactive TUI mode
-  const { waitUntilExit } = render(
-    <App serverConnection={serverConnection} initialPrompt={cli.flags.text} />,
-  );
+  const app = <App serverConnection={serverConnection} initialPrompt={cli.flags.text} />;
+  const instance = render(app);
 
-  await waitUntilExit();
+  // Job control. Ink does not handle suspend/resume at all (ink#, same class of bug as
+  // Bubble Tea TUIs): SIGTSTP leaves the tty in raw mode with the cursor hidden, and on
+  // SIGCONT nothing re-enables raw mode or repaints, so `fg` shows a frozen screen.
+  // SIGTSTP here: give the terminal back, then really stop. SIGCONT: raw mode on,
+  // clear, and force Ink to repaint the whole tree.
+  const stdin = process.stdin as NodeJS.ReadStream & { setRawMode?: (m: boolean) => void };
+  process.on("SIGTSTP", () => {
+    try { stdin.setRawMode?.(false); } catch { /* not a tty */ }
+    process.stdout.write("\x1b[?25h\x1b[?1049l");
+    process.kill(process.pid, "SIGSTOP");
+  });
+  process.on("SIGCONT", () => {
+    try { stdin.setRawMode?.(true); stdin.resume(); } catch { /* not a tty */ }
+    process.stdout.write("\x1b[2J\x1b[H");
+    instance.rerender(app);
+  });
+
+  await instance.waitUntilExit();
   cleanup();
 }
 
