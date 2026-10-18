@@ -1,6 +1,8 @@
 # deploy/
 
-Install scripts for pointing other machines at the llm box (`192.168.200.15`).
+Install scripts for pointing other machines at the lab. Since 2026-10-08 the model proxy (LiteLLM :4000) and
+the tool hub (:8090) live on the service VM `llm-hub-vm` = tailnet `100.111.215.112`; `goose serve` for
+`goose-remote` still runs on the llm box (`192.168.200.15` / tailnet `100.78.76.21`). You need to be on the tailnet.
 
 There are two, and they are **not** interchangeable. The difference is *where the agent
 runs* — which decides whose filesystem gets edited.

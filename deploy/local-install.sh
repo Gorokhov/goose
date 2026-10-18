@@ -18,7 +18,9 @@
 # calls a remote model - the agent sits next to your code, only inference is remote.
 set -euo pipefail
 
-GOOSE_LLM_HOST="${GOOSE_LLM_HOST:-192.168.200.15}"
+# 2026-10-08: LiteLLM and mcp-hub moved to the service VM (llm-hub-vm, tailnet 100.111.215.112).
+# The llm box (192.168.200.15 / 100.78.76.21) now runs inference only - no :4000 there.
+GOOSE_LLM_HOST="${GOOSE_LLM_HOST:-100.111.215.112}"
 GOOSE_LLM_PORT="${GOOSE_LLM_PORT:-4000}"
 # Chat tier: MoE, ~73 tok/s, the right default for interactive work. The smart tier
 # Qwen3.8-27B is ~3x slower but much stronger on reasoning/coding - select it per-run
