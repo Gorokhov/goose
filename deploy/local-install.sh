@@ -92,9 +92,9 @@ if ! command -v goose >/dev/null 2>&1; then
     fi
     command -v bzip2 >/dev/null 2>&1 || { echo "ERROR: could not install bzip2 - install it and re-run" >&2; exit 1; }
   fi
-  # PINNED. `stable` is a floating tag; 1.51.0 is the version verified against our hub (fastmcp 4,
+  # PINNED. `stable` is a floating tag; 1.55.0 is the version verified against our hub (2026-10-19: memory_recall via llmhub + shell OK) (fastmcp 4,
   # MCP 2026-07-28 handshake). Bump deliberately: GOOSE_VERSION=v1.xx.y on the install line.
-  GOOSE_VERSION="${GOOSE_VERSION:-v1.51.0}"
+  GOOSE_VERSION="${GOOSE_VERSION:-v1.55.0}"
   echo "   goose ${GOOSE_VERSION}"
   curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | GOOSE_VERSION="$GOOSE_VERSION" CONFIGURE=false bash
   export PATH="$HOME/.local/bin:$PATH"

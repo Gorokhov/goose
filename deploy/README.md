@@ -44,7 +44,7 @@ boxes have no Secret Service, so file-based storage it is. Putting the key in
 Existing configs are backed up and merged (needs PyYAML); without PyYAML the script
 refuses to touch an existing config and prints the keys to add by hand.
 
-Overrides: `GOOSE_LLM_HOST`, `GOOSE_LLM_PORT`, `GOOSE_LLM_MODEL`, `GOOSE_VERSION` (the CLI is PINNED to v1.51.0 - the version verified against the hub; bump on purpose, not by `stable` drifting).
+Overrides: `GOOSE_LLM_HOST`, `GOOSE_LLM_PORT`, `GOOSE_LLM_MODEL`, `GOOSE_VERSION` (the CLI is PINNED to v1.55.0 - the version verified against the hub; bump on purpose, not by `stable` drifting).
 
 Model tiers — both live behind LiteLLM on `:4000`:
 
